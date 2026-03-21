@@ -30,6 +30,9 @@ public final class KeyEventHandler
   /** Whether to force sending arrow keys to move the cursor when
       [setSelection] could be used instead. */
   boolean _move_cursor_force_fallback = false;
+  /** Whether to paste by sending text directly (for apps like Termux/Emacs
+      that don't handle [performContextMenuAction]). */
+  boolean _paste_force_fallback = false;
   /** Whether the space bar automatically enters the best suggestion. */
   boolean _space_bar_auto_complete = false;
 
@@ -52,6 +55,8 @@ public final class KeyEventHandler
     _typedword.started(conf, ic);
     _move_cursor_force_fallback =
       conf.editor_config.should_move_cursor_force_fallback;
+    // Apps with TYPE_NULL (Termux, Emacs) don't support performContextMenuAction
+    _paste_force_fallback = !conf.editor_config.selection_mode_enabled;
     _space_bar_auto_complete = conf.space_bar_auto_complete;
     clear_space_bar_state();
   }
@@ -275,7 +280,19 @@ public final class KeyEventHandler
     switch (ev)
     {
       case COPY: if(_typedword.is_selection_not_empty()) send_context_menu_action(android.R.id.copy); break;
-      case PASTE: send_context_menu_action(android.R.id.paste); break;
+      case PASTE:
+        if (_paste_force_fallback)
+        {
+          // Apps with TYPE_NULL (Termux, Emacs) don't support performContextMenuAction
+          String clip = ClipboardHistoryService.get_clipboard_text();
+          if (clip != null)
+            send_text(clip);
+        }
+        else
+        {
+          send_context_menu_action(android.R.id.paste);
+        }
+        break;
       case CUT: if(_typedword.is_selection_not_empty()) send_context_menu_action(android.R.id.cut); break;
       case SELECT_ALL: send_context_menu_action(android.R.id.selectAll); break;
       case SHARE: send_context_menu_action(android.R.id.shareText); break;

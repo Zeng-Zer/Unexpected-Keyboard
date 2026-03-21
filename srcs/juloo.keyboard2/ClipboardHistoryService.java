@@ -137,6 +137,19 @@ public final class ClipboardHistoryService
     public void on_clipboard_history_change();
   }
 
+  /** Return the current clipboard text or [null] if unavailable. */
+  public static String get_clipboard_text()
+  {
+    if (_service == null || _service._cm == null)
+      return null;
+    ClipData clip = null;
+    try { clip = _service._cm.getPrimaryClip(); } catch (Exception _e) {}
+    if (clip == null || clip.getItemCount() == 0)
+      return null;
+    CharSequence text = clip.getItemAt(0).getText();
+    return (text != null) ? text.toString() : null;
+  }
+
   /** Add what is currently in the system clipboard into the history. */
   void add_current_clip()
   {
