@@ -53,6 +53,17 @@ public final class Config
       stored in the main preferences, see [Keyboard2.set_pinyin_mode]. */
   public boolean pinyin_mode = false;
   public boolean pinyin_punctuation;
+  /** One-handed mode: the keyboard is narrower and placed on one side. One of
+      [ONE_HAND_*]. Set by [Keyboard2], stored apart from the main
+      preferences. */
+  public int one_hand_side = ONE_HAND_OFF;
+  /** Width of the keyboard in one-handed mode, in percent of the screen. */
+  public int one_hand_width;
+  /** Extra space below the keyboard in one-handed mode, in pixels. */
+  public float one_hand_lift;
+  public static final int ONE_HAND_OFF = 0;
+  public static final int ONE_HAND_LEFT = 1;
+  public static final int ONE_HAND_RIGHT = 2;
   // Let the system handle vibration when false.
   public boolean vibrate_custom;
   // Control the vibration if [vibrate_custom] is true.
@@ -164,6 +175,8 @@ public final class Config
     letter_aware_taps = _prefs.getBoolean("letter_aware_taps", true);
     learn_touch_offsets = _prefs.getBoolean("learn_touch_offsets", true);
     pinyin_punctuation = _prefs.getBoolean("pinyin_punctuation", true);
+    one_hand_width = _prefs.getInt("one_hand_width", 78);
+    one_hand_lift = get_dip_pref(dm, "one_hand_lift", 30);
     // The baseline for the swipe distance correspond to approximately the
     // width of a key in portrait mode, as most layouts have 10 columns.
     // Multipled by the DPI ratio because most swipes are made in the diagonals.
@@ -220,6 +233,15 @@ public final class Config
     float screen_width_dp = dm.widthPixels / dm.density;
     wide_screen = screen_width_dp >= WIDE_DEVICE_THRESHOLD;
     split_layout = get_split_layout();
+  }
+
+  /** In one-handed mode, the space left empty next to the keyboard, in
+      pixels, for a screen of width [width]. */
+  public float one_hand_margin(int width)
+  {
+    if (one_hand_side == ONE_HAND_OFF)
+      return 0.f;
+    return width * (100 - one_hand_width) / 100.f;
   }
 
   public int get_current_layout()

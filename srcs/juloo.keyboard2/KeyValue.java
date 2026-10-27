@@ -27,6 +27,8 @@ public final class KeyValue implements Comparable<KeyValue>
     HIDE_SELF,
     CHANGE_DICTIONARY,
     TOGGLE_PINYIN,
+    ONE_HAND,
+    ONE_HAND_SWITCH_SIDE,
   }
 
   // Must be evaluated in the reverse order of their values.
@@ -665,6 +667,8 @@ public final class KeyValue implements Comparable<KeyValue>
       case "hide_self": return eventKey("⊻", Event.HIDE_SELF, FLAG_SMALLER_FONT);
       case "change_dictionary": return eventKey(0xE01D, Event.CHANGE_DICTIONARY, 0);
       case "toggle_pinyin": return eventKey("中", Event.TOGGLE_PINYIN, 0);
+      case "one_hand": return eventKey("✋", Event.ONE_HAND, FLAG_SMALLER_FONT);
+      case "one_hand_switch_side": return eventKey("⇆", Event.ONE_HAND_SWITCH_SIDE, 0);
 
       /* Key events */
       case "esc": return keyeventKey("Esc", KeyEvent.KEYCODE_ESCAPE, FLAG_SMALLER_FONT);

@@ -65,6 +65,7 @@ public class ExtraKeysPreference extends PreferenceCategory
     "end",
     "switch_greekmath",
     "toggle_pinyin",
+    "one_hand",
     "change_method",
     "capslock",
     "copy",
@@ -197,6 +198,7 @@ public class ExtraKeysPreference extends PreferenceCategory
       case "superscript": id = R.string.key_descr_superscript; break;
       case "switch_greekmath": id = R.string.key_descr_switch_greekmath; break;
       case "toggle_pinyin": id = R.string.key_descr_toggle_pinyin; break;
+      case "one_hand": id = R.string.key_descr_one_hand; break;
       case "undo": id = R.string.key_descr_undo; break;
       case "voice_typing": id = R.string.key_descr_voice_typing; break;
       case "ª": id = R.string.key_descr_ª; break;

@@ -49,6 +49,9 @@ public class CandidatesView extends LinearLayout
   LinearLayout _pinyin_row;
   ArrayList<TextView> _pinyin_views = new ArrayList<TextView>();
   float _text_size = 0.f;
+  /** Padding from the style, kept when adding side margins. */
+  int _base_padding_left = -1;
+  int _base_padding_right = -1;
   int _row_height = 0;
 
   public CandidatesView(Context context, AttributeSet attrs)
@@ -75,6 +78,18 @@ public class CandidatesView extends LinearLayout
     _pinyin_scroll.setVisibility(View.GONE);
     addView(_pinyin_scroll, 0, new LinearLayout.LayoutParams(0,
           ViewGroup.LayoutParams.MATCH_PARENT, 1.f));
+  }
+
+  /** Leave space on the sides in one-handed mode. */
+  public void set_side_margins(int left, int right)
+  {
+    if (_base_padding_left < 0)
+    {
+      _base_padding_left = getPaddingLeft();
+      _base_padding_right = getPaddingRight();
+    }
+    setPadding(_base_padding_left + left, getPaddingTop(),
+        _base_padding_right + right, getPaddingBottom());
   }
 
   /** Candidates of the pinyin mode, an empty list shows the language

@@ -247,6 +247,8 @@ public class Keyboard2 extends InputMethodService
   {
     int prev_theme = _config.theme;
     _config.refresh(getResources(), _foldStateTracker.isUnfolded(), _dictionaries);
+    _config.one_hand_side = one_hand_prefs().getInt(one_hand_pref_key(),
+        Config.ONE_HAND_OFF);
     refresh_current_dictionary();
     // Refreshing the theme config requires re-creating the views
     if (prev_theme != _config.theme)
@@ -262,6 +264,42 @@ public class Keyboard2 extends InputMethodService
     _keyboard_container_view.setBackground(bg);
     _keyboard_layout_view.reset();
     refresh_candidates_view();
+    refresh_one_hand_margins();
+  }
+
+  /** One-handed mode is stored per orientation, apart from the main
+      preferences. */
+  private SharedPreferences one_hand_prefs()
+  {
+    return DirectBootAwarePreferences.get_protected_prefs(this, "one_hand");
+  }
+
+  private String one_hand_pref_key()
+  {
+    return _config.orientation_landscape ? "landscape" : "portrait";
+  }
+
+  void set_one_hand_side(int side)
+  {
+    SharedPreferences.Editor e = one_hand_prefs().edit();
+    e.putInt(one_hand_pref_key(), side);
+    if (side != Config.ONE_HAND_OFF)
+      e.putInt("last_side", side);
+    e.apply();
+    _config.one_hand_side = side;
+    refresh_one_hand_margins();
+    _keyboard_layout_view.requestLayout();
+    _keyboard_layout_view.invalidate();
+  }
+
+  /** The candidates view shrinks with the keyboard. */
+  private void refresh_one_hand_margins()
+  {
+    int width = getResources().getDisplayMetrics().widthPixels;
+    int m = (int)_config.one_hand_margin(width);
+    _candidates_view.set_side_margins(
+        (_config.one_hand_side == Config.ONE_HAND_RIGHT) ? m : 0,
+        (_config.one_hand_side == Config.ONE_HAND_LEFT) ? m : 0);
   }
 
   private KeyboardData refresh_special_layout()
@@ -549,6 +587,17 @@ public class Keyboard2 extends InputMethodService
 
         case TOGGLE_PINYIN:
           set_pinyin_mode(!_config.pinyin_mode);
+          break;
+
+        case ONE_HAND:
+          set_one_hand_side((_config.one_hand_side != Config.ONE_HAND_OFF) ?
+              Config.ONE_HAND_OFF :
+              one_hand_prefs().getInt("last_side", Config.ONE_HAND_RIGHT));
+          break;
+
+        case ONE_HAND_SWITCH_SIDE:
+          set_one_hand_side((_config.one_hand_side == Config.ONE_HAND_LEFT) ?
+              Config.ONE_HAND_RIGHT : Config.ONE_HAND_LEFT);
           break;
       }
     }

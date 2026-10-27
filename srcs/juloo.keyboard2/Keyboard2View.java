@@ -74,6 +74,16 @@ public class Keyboard2View extends View
   private Paint _glide_paint = null;
   private Path _glide_draw_path = new Path();
 
+  /** In one-handed mode, the empty strip next to the keyboard, where the
+      buttons to switch side and to go back to full width are. Empty
+      ([_strip_left == _strip_right]) when not in one-handed mode. */
+  private float _strip_left = 0.f;
+  private float _strip_right = 0.f;
+  private float _strip_top = 0.f;
+  private float _strip_bottom = 0.f;
+  private Paint _one_hand_paint = null;
+  private Path _icon_path = new Path();
+
   /** A gesture becomes a glide after travelling this many key widths. Shorter
       swipes select the symbols in the corners of the keys. */
   static final float GLIDE_TRIGGER_KEYS = 1.3f;
@@ -454,6 +464,11 @@ public class Keyboard2View extends View
         p = event.getActionIndex();
         float tx = event.getX(p);
         float ty = event.getY(p);
+        if (tx >= _strip_left && tx < _strip_right)
+        {
+          one_hand_strip_pressed(ty);
+          break;
+        }
         KeyboardData.Key key = getKeyAtPosition(tx, ty);
         if (key != null)
           _pointers.onTouchDown(tx, ty, event.getPointerId(p), key,
@@ -517,7 +532,25 @@ public class Keyboard2View extends View
     int width = dm.widthPixels;
     _marginLeft = Math.max(_config.horizontal_margin, _insets_left);
     _marginRight = Math.max(_config.horizontal_margin, _insets_right);
+    // One-handed mode: the keyboard is pushed to one side, leaving a strip
+    // on the other side.
+    float one_hand = _config.one_hand_margin(width);
+    _strip_left = _strip_right = 0.f;
+    if (_config.one_hand_side == Config.ONE_HAND_LEFT)
+    {
+      _strip_right = width - _marginRight;
+      _strip_left = _strip_right - one_hand;
+      _marginRight += one_hand;
+    }
+    else if (_config.one_hand_side == Config.ONE_HAND_RIGHT)
+    {
+      _strip_left = _marginLeft;
+      _strip_right = _strip_left + one_hand;
+      _marginLeft += one_hand;
+    }
     _marginBottom = _config.margin_bottom + _insets_bottom;
+    if (_config.one_hand_side != Config.ONE_HAND_OFF)
+      _marginBottom += _config.one_hand_lift;
     _keyWidth = (width - _marginLeft - _marginRight) / _keyboard.keysWidth;
     _tc = new Theme.Computed(_theme, _config, _keyWidth, _keyboard);
     // Compute the size of labels based on the width or the height of keys. The
@@ -526,7 +559,7 @@ public class Keyboard2View extends View
     // width computation is useful when the keyboard is unusually high.
     float labelBaseSize = Math.min(
         _tc.row_height - _tc.vertical_margin,
-        (width / 10 - _tc.horizontal_margin) * 3/2
+        ((width - one_hand) / 10 - _tc.horizontal_margin) * 3/2
         ) * _config.characterSize;
     _mainLabelSize = labelBaseSize * _config.labelTextSize;
     _subLabelSize = labelBaseSize * _config.sublabelTextSize;
@@ -534,6 +567,8 @@ public class Keyboard2View extends View
       (int)(_tc.row_height * _keyboard.keysHeight
           + _config.marginTop + _marginBottom);
     setMeasuredDimension(width, height);
+    _strip_top = _config.marginTop;
+    _strip_bottom = height - _marginBottom;
     compute_key_centers();
   }
 
@@ -636,9 +671,58 @@ public class Keyboard2View extends View
       }
       y += row.height * _tc.row_height;
     }
+    if (_strip_left < _strip_right)
+      drawOneHandButtons(canvas);
     Pointers.GlidePath glide = _pointers.getGlidePath();
     if (glide != null)
       drawGlidePath(canvas, glide);
+  }
+
+  /** The top half of the strip switches side, the bottom half goes back to
+      full width. */
+  private void one_hand_strip_pressed(float y)
+  {
+    String key = (y < (_strip_top + _strip_bottom) / 2) ?
+      "one_hand_switch_side" : "one_hand";
+    vibrate();
+    _config.handler.key_up(KeyValue.getKeyByName(key),
+        Pointers.Modifiers.EMPTY);
+  }
+
+  /** Draw the buttons of the one-handed mode in the empty strip. */
+  void drawOneHandButtons(Canvas canvas)
+  {
+    if (_one_hand_paint == null)
+    {
+      _one_hand_paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+      _one_hand_paint.setStyle(Paint.Style.STROKE);
+      _one_hand_paint.setStrokeCap(Paint.Cap.ROUND);
+      _one_hand_paint.setStrokeJoin(Paint.Join.ROUND);
+    }
+    _one_hand_paint.setColor(_theme.subLabelColor);
+    _one_hand_paint.setStrokeWidth(_keyWidth * 0.07f);
+    float cx = (_strip_left + _strip_right) / 2;
+    float mid = (_strip_top + _strip_bottom) / 2;
+    float r = Math.min(_strip_right - _strip_left, mid - _strip_top) * 0.2f;
+    // Switch side: a chevron pointing to where the keyboard will go.
+    float cy = (_strip_top + mid) / 2;
+    float dir = (_config.one_hand_side == Config.ONE_HAND_LEFT) ? 1.f : -1.f;
+    Path p = _icon_path;
+    p.rewind();
+    p.moveTo(cx - dir * r * 0.5f, cy - r);
+    p.lineTo(cx + dir * r * 0.5f, cy);
+    p.lineTo(cx - dir * r * 0.5f, cy + r);
+    canvas.drawPath(p, _one_hand_paint);
+    // Full width: four corners pointing outwards.
+    cy = (mid + _strip_bottom) / 2;
+    float c = r * 0.5f;
+    for (int sx = -1; sx <= 1; sx += 2)
+      for (int sy = -1; sy <= 1; sy += 2)
+      {
+        float x = cx + sx * r, y = cy + sy * r;
+        canvas.drawLine(x, y, x - sx * c, y, _one_hand_paint);
+        canvas.drawLine(x, y, x, y - sy * c, _one_hand_paint);
+      }
   }
 
   /** Draw the trail of the glide gesture in progress. */

@@ -9,6 +9,9 @@
     <string name="pref_pinyin_punctuation_title">Chinese punctuation in pinyin mode</string>
     <string name="pref_pinyin_punctuation_summary">Type ，。？！ instead of , . ? ! while in pinyin mode</string>
     <string name="key_descr_toggle_pinyin">Switch between pinyin (中文) and the other languages</string>
+    <string name="key_descr_one_hand">One-handed mode</string>
+    <string name="pref_one_hand_width_title">Width in one-handed mode</string>
+    <string name="pref_one_hand_lift_title">Raise the keyboard in one-handed mode</string>
     <string name="pinyin_mode_label">中文 (拼音)</string>
     <string name="pref_learn_touch_offsets_title">Learn how you type</string>
     <string name="pref_learn_touch_offsets_summary">Adapt the keys to where you actually tap them. Only the position of your taps is learned, never what you type.</string>
