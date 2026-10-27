@@ -44,7 +44,7 @@ public final class Suggestions
 
   public void currently_typed_word(String word)
   {
-    if (!_enabled)
+    if (!_enabled || _config.pinyin_mode)
       return;
     if (word.length() < 2 || _config.dictionaries.length == 0)
       clear();

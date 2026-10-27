@@ -6,6 +6,10 @@
     <string name="pref_glide_typing_summary">Slide through the letters of a word. Short swipes still type the symbols in the corners of the keys. Needs a dictionary.</string>
     <string name="pref_letter_aware_taps_title">Letter-aware key targeting</string>
     <string name="pref_letter_aware_taps_summary">When a tap lands between two letters, type the one that makes a word</string>
+    <string name="pref_pinyin_punctuation_title">Chinese punctuation in pinyin mode</string>
+    <string name="pref_pinyin_punctuation_summary">Type ，。？！ instead of , . ? ! while in pinyin mode</string>
+    <string name="key_descr_toggle_pinyin">Switch between pinyin (中文) and the other languages</string>
+    <string name="pinyin_mode_label">中文 (拼音)</string>
     <string name="pref_learn_touch_offsets_title">Learn how you type</string>
     <string name="pref_learn_touch_offsets_summary">Adapt the keys to where you actually tap them. Only the position of your taps is learned, never what you type.</string>
     <string name="short_description">Lightweight and privacy-conscious virtual keyboard for Android.</string>

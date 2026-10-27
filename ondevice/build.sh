@@ -13,7 +13,20 @@ B=build-ondevice
 VERSION_NAME=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' build.gradle.kts)-glide
 VERSION_CODE=$(sed -n 's/.*versionCode = \([0-9]*\).*/\1/p' build.gradle.kts)
 
-rm -rf $B && mkdir -p $B/{gen-res/xml,gen-res/raw,gen-res/values,gen,classes,dex,lib/arm64-v8a}
+rm -rf $B && mkdir -p $B/{gen-res/xml,gen-res/raw,gen-res/values,gen,classes,dex,lib/arm64-v8a,assets}
+
+# 0. Pinyin dictionary, generated from rime-ice (GPL-3.0). Cached in build-host/.
+PINYIN_SRC=build-host/pinyin-src
+PINYIN_TXT=build-host/pinyin.txt
+if [ ! -f $PINYIN_TXT ]; then
+  mkdir -p $PINYIN_SRC
+  for f in 8105 base; do
+    [ -f $PINYIN_SRC/$f.dict.yaml ] || curl -sfL -o $PINYIN_SRC/$f.dict.yaml \
+      https://raw.githubusercontent.com/iDvel/rime-ice/main/cn_dicts/$f.dict.yaml
+  done
+  python3 -I ondevice/gen_pinyin.py $PINYIN_SRC $PINYIN_TXT
+fi
+cp assets/* $PINYIN_TXT $B/assets/
 
 # 1. Generated resources (what Gradle's copy tasks and resValue do)
 cp srcs/layouts/*.xml $B/gen-res/xml/
@@ -31,7 +44,7 @@ aapt2 link -I "$ANDROID_JAR" --manifest $B/AndroidManifest.xml \
   --rename-manifest-package $APP_ID \
   --min-sdk-version 21 --target-sdk-version 36 \
   --version-code "$VERSION_CODE" --version-name "$VERSION_NAME" \
-  -A assets --java $B/gen -o $B/unsigned.apk $B/res.zip $B/gen-res.zip
+  -A $B/assets --java $B/gen -o $B/unsigned.apk $B/res.zip $B/gen-res.zip
 
 # 3. Java -> dex
 SRCS=$(find srcs/juloo.keyboard2 vendor/cdict/java/juloo.cdict $B/gen -name '*.java' \

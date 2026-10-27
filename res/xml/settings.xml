@@ -19,6 +19,7 @@
     <CheckBoxPreference android:key="suggestions_add_space" android:title="@string/pref_suggestions_add_space_title" android:summary="@string/pref_suggestions_add_space_summary" android:defaultValue="true"/>
     <CheckBoxPreference android:key="glide_typing" android:title="@string/pref_glide_typing_title" android:summary="@string/pref_glide_typing_summary" android:defaultValue="true"/>
     <CheckBoxPreference android:key="letter_aware_taps" android:title="@string/pref_letter_aware_taps_title" android:summary="@string/pref_letter_aware_taps_summary" android:defaultValue="true"/>
+    <CheckBoxPreference android:key="pinyin_punctuation" android:title="@string/pref_pinyin_punctuation_title" android:summary="@string/pref_pinyin_punctuation_summary" android:defaultValue="true"/>
     <CheckBoxPreference android:key="learn_touch_offsets" android:title="@string/pref_learn_touch_offsets_title" android:summary="@string/pref_learn_touch_offsets_summary" android:defaultValue="true"/>
   </PreferenceCategory>
   <PreferenceCategory android:title="@string/pref_category_typing">

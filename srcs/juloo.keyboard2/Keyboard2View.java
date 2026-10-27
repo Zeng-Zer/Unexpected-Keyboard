@@ -254,6 +254,7 @@ public class Keyboard2View extends View
   public boolean canGlide(KeyboardData.Key key)
   {
     return _config.glide_typing
+      && !_config.pinyin_mode
       && _config.editor_config.should_show_candidates_view
       && letter_key_index(key) >= 0
       && glide_decoder() != null;
@@ -293,6 +294,7 @@ public class Keyboard2View extends View
     if (k < 0)
       return key;
     boolean use_lm = _config.letter_aware_taps
+      && !_config.pinyin_mode
       && _config.editor_config.should_show_candidates_view
       && _config.current_dictionary != null;
     if (!use_lm && !_config.learn_touch_offsets)

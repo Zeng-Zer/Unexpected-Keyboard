@@ -49,6 +49,10 @@ public final class Config
   public boolean glide_typing;
   public boolean letter_aware_taps;
   public boolean learn_touch_offsets;
+  /** Chinese input with pinyin, toggled with the [toggle_pinyin] key. Not
+      stored in the main preferences, see [Keyboard2.set_pinyin_mode]. */
+  public boolean pinyin_mode = false;
+  public boolean pinyin_punctuation;
   // Let the system handle vibration when false.
   public boolean vibrate_custom;
   // Control the vibration if [vibrate_custom] is true.
@@ -159,6 +163,7 @@ public final class Config
     glide_typing = _prefs.getBoolean("glide_typing", true);
     letter_aware_taps = _prefs.getBoolean("letter_aware_taps", true);
     learn_touch_offsets = _prefs.getBoolean("learn_touch_offsets", true);
+    pinyin_punctuation = _prefs.getBoolean("pinyin_punctuation", true);
     // The baseline for the swipe distance correspond to approximately the
     // width of a key in portrait mode, as most layouts have 10 columns.
     // Multipled by the DPI ratio because most swipes are made in the diagonals.
@@ -356,6 +361,8 @@ public final class Config
         from the text before the cursor. See [LanguageContext]. Queries the
         editor. */
     public float[] language_bonus(boolean exclude_current_word);
+    /** A candidate of the pinyin mode was tapped. */
+    public void pinyin_candidate_selected(int index);
   }
 
   /** Config migrations. */

@@ -142,6 +142,9 @@ public class Keyboard2 extends InputMethodService
     _keyeventhandler = new KeyEventHandler(_config, recvr, _suggestions);
     KeyValue.Stateful._handler = recvr;
     _config.handler = _keyeventhandler;
+    _config.pinyin_mode = pinyin_prefs().getBoolean("enabled", false);
+    if (_config.pinyin_mode)
+      _keyeventhandler.pinyin().load_engine(this);
     prefs.registerOnSharedPreferenceChangeListener(this);
     Logs.set_debug_logs(getResources().getBoolean(R.bool.debug_logs));
     refreshSubtypeImm();
@@ -206,10 +209,28 @@ public class Keyboard2 extends InputMethodService
     refresh_candidates_view();
   }
 
+  /** The pinyin mode is stored apart from the main preferences, changing it
+      doesn't refresh the whole config. */
+  private SharedPreferences pinyin_prefs()
+  {
+    return DirectBootAwarePreferences.get_protected_prefs(this, "pinyin");
+  }
+
+  void set_pinyin_mode(boolean enabled)
+  {
+    _keyeventhandler.pinyin().commit_raw();
+    _config.pinyin_mode = enabled;
+    pinyin_prefs().edit().putBoolean("enabled", enabled).apply();
+    if (enabled)
+      _keyeventhandler.pinyin().load_engine(this);
+    _keyeventhandler.pinyin_mode_changed();
+    refresh_candidates_view();
+  }
+
   private void refresh_candidates_view()
   {
     boolean should_show =
-      _config.suggestions_enabled
+      (_config.suggestions_enabled || _config.pinyin_mode)
       && _config.editor_config.should_show_candidates_view
       && !_config.split_layout;
     if (should_show)
@@ -365,6 +386,8 @@ public class Keyboard2 extends InputMethodService
   {
     super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd);
     _keyeventhandler.selection_updated(oldSelStart, newSelStart, newSelEnd);
+    _keyeventhandler.pinyin_selection_updated(newSelStart, newSelEnd,
+        candidatesStart, candidatesEnd);
     if ((oldSelStart == oldSelEnd) != (newSelStart == newSelEnd))
       _keyboard_layout_view.set_selection_state(newSelStart != newSelEnd);
   }
@@ -374,6 +397,8 @@ public class Keyboard2 extends InputMethodService
   {
     super.onFinishInputView(finishingInput);
     _keyboard_layout_view.reset();
+    _keyeventhandler.pinyin().reset(false);
+    _keyeventhandler.pinyin().save_user_data();
   }
 
   @Override
@@ -521,6 +546,10 @@ public class Keyboard2 extends InputMethodService
           new DictionarySwitcher(Keyboard2.this, _dictionaries, this)
             .choose(_config.current_dictionary_name);
           break;
+
+        case TOGGLE_PINYIN:
+          set_pinyin_mode(!_config.pinyin_mode);
+          break;
       }
     }
 
@@ -552,6 +581,11 @@ public class Keyboard2 extends InputMethodService
     public void set_suggestions(Suggestions suggestions)
     {
       _candidates_view.set_candidates(suggestions);
+    }
+
+    public void set_pinyin_candidates(java.util.List<String> words)
+    {
+      _candidates_view.set_pinyin_candidates(words);
     }
 
     public String provide_stateful_key_symbol(KeyValue.Stateful q)

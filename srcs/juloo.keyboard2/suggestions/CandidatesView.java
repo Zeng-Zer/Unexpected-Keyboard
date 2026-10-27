@@ -8,6 +8,7 @@ import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
+import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import java.util.ArrayList;
@@ -42,6 +43,14 @@ public class CandidatesView extends LinearLayout
 
   TextView _lang_name_view;
 
+  /** In pinyin mode, the candidates are in a scrollable row instead. */
+  boolean _pinyin_mode = false;
+  HorizontalScrollView _pinyin_scroll;
+  LinearLayout _pinyin_row;
+  ArrayList<TextView> _pinyin_views = new ArrayList<TextView>();
+  float _text_size = 0.f;
+  int _row_height = 0;
+
   public CandidatesView(Context context, AttributeSet attrs)
   {
     super(context, attrs);
@@ -57,10 +66,73 @@ public class CandidatesView extends LinearLayout
     setup_item_view(3, R.id.candidates_emoji);
     setup_dictionary_switch_button();
     _lang_name_view = (TextView)findViewById(R.id.candidates_lang_name);
+    _pinyin_row = new LinearLayout(getContext());
+    _pinyin_row.setOrientation(LinearLayout.HORIZONTAL);
+    _pinyin_scroll = new HorizontalScrollView(getContext());
+    _pinyin_scroll.setHorizontalScrollBarEnabled(false);
+    _pinyin_scroll.addView(_pinyin_row, new ViewGroup.LayoutParams(
+          ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
+    _pinyin_scroll.setVisibility(View.GONE);
+    addView(_pinyin_scroll, 0, new LinearLayout.LayoutParams(0,
+          ViewGroup.LayoutParams.MATCH_PARENT, 1.f));
+  }
+
+  /** Candidates of the pinyin mode, an empty list shows the language
+      button. */
+  public void set_pinyin_candidates(List<String> words)
+  {
+    boolean show = !words.isEmpty();
+    for (TextView v : _item_views)
+      v.setVisibility(View.GONE);
+    if (_status_no_dict != null)
+      _status_no_dict.setVisibility(View.GONE);
+    _pinyin_scroll.setVisibility(show ? View.VISIBLE : View.GONE);
+    _dictionary_switch_button.setVisibility(show ? View.GONE : View.VISIBLE);
+    _lang_name_view.setVisibility(show ? View.GONE : View.VISIBLE);
+    while (_pinyin_views.size() < words.size())
+      _pinyin_views.add(new_pinyin_view(_pinyin_views.size()));
+    for (int i = 0; i < _pinyin_views.size(); i++)
+    {
+      TextView v = _pinyin_views.get(i);
+      if (i < words.size())
+      {
+        v.setText(words.get(i));
+        v.setVisibility(View.VISIBLE);
+      }
+      else
+        v.setVisibility(View.GONE);
+    }
+    _pinyin_scroll.scrollTo(0, 0);
+  }
+
+  TextView new_pinyin_view(final int index)
+  {
+    TextView v = new TextView(getContext(), null, 0, R.style.candidates_item);
+    LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
+    int gap = getResources().getDimensionPixelSize(R.dimen.candidates_gap);
+    int margin_v =
+      getResources().getDimensionPixelSize(R.dimen.candidates_margin_vertical);
+    p.setMargins(gap, margin_v, 0, margin_v);
+    v.setLayoutParams(p);
+    v.setMinWidth(_row_height);
+    v.setTextSize(TypedValue.COMPLEX_UNIT_PX, _text_size);
+    v.setOnClickListener(new View.OnClickListener()
+        {
+          @Override
+          public void onClick(View _v)
+          {
+            Config.globalConfig().handler.pinyin_candidate_selected(index);
+          }
+        });
+    _pinyin_row.addView(v);
+    return v;
   }
 
   public void set_candidates(Suggestions s)
   {
+    if (_pinyin_mode)
+      return;
     int s_count = s.count;
     for (int i = 0; i < Suggestions.MAX_COUNT; i++)
       _items[i] = (i < s_count) ? s.suggestions[i] : null;
@@ -99,6 +171,17 @@ public class CandidatesView extends LinearLayout
   public void refresh_config(Config config)
   {
     clear_candidates();
+    _pinyin_mode = config.pinyin_mode;
+    set_sizes(config);
+    if (_pinyin_mode)
+    {
+      if (_status_no_dict != null)
+        _status_no_dict.setVisibility(View.GONE);
+      _lang_name_view.setText(R.string.pinyin_mode_label);
+      set_pinyin_candidates(new ArrayList<String>());
+      return;
+    }
+    _pinyin_scroll.setVisibility(View.GONE);
     // The status message indicates whether the dictionaries should be
     // installed.
     if (config.current_dictionary == null)
@@ -126,6 +209,13 @@ public class CandidatesView extends LinearLayout
     setLayoutParams(p);
     // Match the size of labels on the keyboard.
     float text_size = row_height * config.characterSize * config.labelTextSize;
+    _text_size = text_size;
+    _row_height = (int)row_height;
+    for (TextView v : _pinyin_views)
+    {
+      v.setTextSize(TypedValue.COMPLEX_UNIT_PX, text_size);
+      v.setMinWidth(_row_height);
+    }
     for (int i = 0; i < NUM_CANDIDATES; i++)
     {
       TextView v = _item_views[i];
@@ -181,9 +271,21 @@ public class CandidatesView extends LinearLayout
           @Override
           public void onClick(View _v)
           {
+            // Tap switches between pinyin and the other languages.
+            Config.globalConfig().handler.key_up(
+                KeyValue.getKeyByName("toggle_pinyin"),
+                Pointers.Modifiers.EMPTY);
+          }
+        });
+    _dictionary_switch_button.setOnLongClickListener(new View.OnLongClickListener()
+        {
+          @Override
+          public boolean onLongClick(View _v)
+          {
             Config.globalConfig().handler.key_up(
                 KeyValue.getKeyByName("change_dictionary"),
                 Pointers.Modifiers.EMPTY);
+            return true;
           }
         });
   }

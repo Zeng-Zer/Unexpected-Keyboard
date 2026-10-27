@@ -36,6 +36,7 @@ public final class KeyEventHandler
   /** Remember the action that was handled. This is used by autocorrect. */
   LastAction _last_action = null;
   LastAction _next_last_action = null;
+  PinyinComposer _pinyin;
 
   public KeyEventHandler(Config conf, IReceiver recv, Suggestions sg)
   {
@@ -47,6 +48,37 @@ public final class KeyEventHandler
     _mods = Pointers.Modifiers.EMPTY;
     _suggestions = sg;
     _typedword = new CurrentlyTypedWord(handler, this);
+    _pinyin = new PinyinComposer(conf, new PinyinComposer.Callback() {
+      public InputConnection getCurrentInputConnection()
+      { return _recv.getCurrentInputConnection(); }
+      public void send_text(String text)
+      { KeyEventHandler.this.send_text(text); }
+      public void set_pinyin_candidates(java.util.List<String> words)
+      { _recv.set_pinyin_candidates(words); }
+    }, handler);
+  }
+
+  public PinyinComposer pinyin() { return _pinyin; }
+
+  @Override
+  public void pinyin_candidate_selected(int index)
+  {
+    _pinyin.select(index);
+  }
+
+  /** [comp_start] and [comp_end] are the composing region, [-1] if there's
+      none. */
+  public void pinyin_selection_updated(int sel_start, int sel_end,
+      int comp_start, int comp_end)
+  {
+    _pinyin.selection_updated(sel_start, sel_end, comp_start, comp_end);
+  }
+
+  /** Pinyin mode was toggled. */
+  public void pinyin_mode_changed()
+  {
+    if (_pinyin.active())
+      _autocap.stop();
   }
 
   /** Editing just started. */
@@ -55,6 +87,10 @@ public final class KeyEventHandler
     InputConnection ic = _recv.getCurrentInputConnection();
     _autocap.started(_config, ic);
     _typedword.started(_config, ic);
+    _pinyin.reset(false);
+    // Chinese has no capital letters, shift would only get in the way.
+    if (_pinyin.active())
+      _autocap.stop();
     _suggestions.started();
     _move_cursor_force_fallback =
       _config.editor_config.should_move_cursor_force_fallback;
@@ -106,6 +142,11 @@ public final class KeyEventHandler
   {
     if (key == null)
       return;
+    if (_pinyin.key_up(key, mods))
+    {
+      _last_action = LastAction.OTHER;
+      return;
+    }
     _next_last_action = LastAction.OTHER;
     Pointers.Modifiers old_mods = _mods;
     update_meta_state(mods);
@@ -679,6 +720,7 @@ public final class KeyEventHandler
     public void selection_state_changed(boolean selection_is_ongoing);
     public InputConnection getCurrentInputConnection();
     public Handler getHandler();
+    public void set_pinyin_candidates(java.util.List<String> words);
   }
 
   class Autocapitalisation_callback implements Autocapitalisation.Callback
