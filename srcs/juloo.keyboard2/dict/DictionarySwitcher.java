@@ -3,8 +3,8 @@ package juloo.keyboard2.dict;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.inputmethodservice.InputMethodService;
-import android.widget.ArrayAdapter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import juloo.keyboard2.*;
 
@@ -24,23 +24,47 @@ public final class DictionarySwitcher
     _callback = callback;
   }
 
-  public void choose()
+  /** Several languages can be checked to type in all of them at once.
+      [current] is the current selection, might be [null]. */
+  public void choose(String current)
   {
     final List<String> dict_names = new ArrayList<String>(_dicts.get_installed());
-    List<String> labels = new ArrayList<String>();
-    for (String name : dict_names)
-      labels.add(_sd.get_display_name(name));
-    ArrayAdapter adapter =
-      new ArrayAdapter(_ims, android.R.layout.simple_list_item_1, labels);
+    Collections.sort(dict_names);
+    // Keep the order of the current selection, the first dictionary is the
+    // main one.
+    final List<String> selected = new ArrayList<String>();
+    if (current != null)
+      for (String n : Dictionaries.split_names(current))
+        if (dict_names.contains(n))
+          selected.add(n);
+    String[] labels = new String[dict_names.size()];
+    boolean[] checked = new boolean[dict_names.size()];
+    for (int i = 0; i < labels.length; i++)
+    {
+      labels[i] = _sd.get_display_name(dict_names.get(i));
+      checked[i] = selected.contains(dict_names.get(i));
+    }
     AlertDialog dialog = new AlertDialog.Builder(_ims)
       .setTitle(R.string.dictionary_switcher_title)
-      .setAdapter(adapter, new DialogInterface.OnClickListener(){
-        public void onClick(DialogInterface _d, int which)
-        {
-          _callback.on_change_dictionary(dict_names.get(which));
-        }
-      })
-      .setPositiveButton(R.string.launcher_button_dictionaries,
+      .setMultiChoiceItems(labels, checked,
+        new DialogInterface.OnMultiChoiceClickListener(){
+          public void onClick(DialogInterface _d, int which, boolean is_checked)
+          {
+            String n = dict_names.get(which);
+            selected.remove(n);
+            if (is_checked)
+              selected.add(n);
+          }
+        })
+      .setPositiveButton(android.R.string.ok,
+        new DialogInterface.OnClickListener(){
+          public void onClick(DialogInterface _d, int _which)
+          {
+            if (selected.size() > 0)
+              _callback.on_change_dictionary(Dictionaries.join_names(selected));
+          }
+        })
+      .setNeutralButton(R.string.launcher_button_dictionaries,
         new DialogInterface.OnClickListener(){
           public void onClick(DialogInterface _d, int _which)
           {

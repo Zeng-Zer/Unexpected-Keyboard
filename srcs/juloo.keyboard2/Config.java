@@ -90,6 +90,9 @@ public final class Config
   public Map<KeyValue, KeyboardData.PreferredPos> extra_keys_custom;
   public DeviceLocales device_locales = null;
   public Cdict current_dictionary = null; // Might be 'null'.
+  /** All the active dictionaries when typing in several languages at once.
+      [current_dictionary] is the first. Empty if there's no dictionary. */
+  public Cdict[] dictionaries = new Cdict[0];
   public Cdict emoji_dictionary = null; // Might be 'null'.
   public String current_dictionary_name = null; // Internal name for the current dictionary
   /** Whether to show the dictionary switching button in the candidates view. */
@@ -349,6 +352,10 @@ public final class Config
     public void glide_entered(String[] words, int caps);
     /** The part of the current word that is before the cursor. */
     public String word_before_cursor();
+    /** Bonus for each of [dictionaries] favoring the language being typed,
+        from the text before the cursor. See [LanguageContext]. Queries the
+        editor. */
+    public float[] language_bonus(boolean exclude_current_word);
   }
 
   /** Config migrations. */

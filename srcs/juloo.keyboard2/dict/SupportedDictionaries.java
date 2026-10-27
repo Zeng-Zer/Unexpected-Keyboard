@@ -41,8 +41,21 @@ public class SupportedDictionaries
   public String display_name(int i) { return names[i]; }
   public int size(int i) { return sizes[i]; }
 
+  /** Also works for several dictionaries joined with
+      [Dictionaries.SEPARATOR]. */
   public String get_display_name(String dict_name)
   {
+    if (dict_name.contains(Dictionaries.SEPARATOR))
+    {
+      StringBuilder b = new StringBuilder();
+      for (String n : Dictionaries.split_names(dict_name))
+      {
+        if (b.length() > 0)
+          b.append(" + ");
+        b.append(get_display_name(n));
+      }
+      return b.toString();
+    }
     int i = find(dict_name);
     return (i >= 0) ? names[i] : dict_name;
   }

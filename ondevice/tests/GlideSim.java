@@ -21,6 +21,9 @@ public class GlideSim {
 
   static Random rnd = new Random(42);
 
+  /** [gesture] for a word already in glide form (no accents). */
+  static float[][] gestureGlide(KeyCenters kc, String word, float noise) { return gesture(kc, word, noise); }
+
   /** Gesture for [word]: through noisy key centers, smoothed (corner cutting). */
   static float[][] gesture(KeyCenters kc, String word, float noise) {
     List<float[]> pts = new ArrayList<>();

@@ -1,6 +1,8 @@
 package juloo.keyboard2.suggestions;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import juloo.cdict.Cdict;
 import juloo.keyboard2.dict.Dictionaries;
@@ -22,6 +24,9 @@ public final class Suggestions
       are not [null]. */
   public int count = 0;
   public String emoji_suggestion = null;
+  /** Frequency bonus for each of [_config.dictionaries], favoring the
+      language being typed. Might be [null]. */
+  public float[] dict_bonus = null;
   /** Number of suggestions in [suggestions]. */
   public static final int MAX_COUNT = 3;
 
@@ -41,7 +46,7 @@ public final class Suggestions
   {
     if (!_enabled)
       return;
-    if (word.length() < 2 || _config.current_dictionary == null)
+    if (word.length() < 2 || _config.dictionaries.length == 0)
       clear();
     else
       query_suggestions(word);
@@ -71,29 +76,75 @@ public final class Suggestions
 
   int query_suggestions(String word)
   {
-    Cdict dict = _config.current_dictionary;
     boolean first_char_upper = Character.isUpperCase(word.charAt(0));
     word = apply_substitutions(word);
-    Cdict.Result r = dict.find(word);
-    int i = 0;
-    if (r.found)
-      suggestions[i++] = dict.word(r.index);
-    int[] suffixes = dict.suffixes(r, MAX_COUNT);
-    // Disable distance search for small words
-    int[] dist = (word.length() < 3 || i + 1 >= MAX_COUNT) ? NO_RESULTS :
-      dict.distance(word, 1, MAX_COUNT);
-    for (int j = 0; j < MAX_COUNT && i < MAX_COUNT; j++)
+    // With several dictionaries, the results of each kind are merged and
+    // sorted by frequency.
+    ArrayList<Candidate> exact = new ArrayList<Candidate>();
+    ArrayList<Candidate> suffixes = new ArrayList<Candidate>();
+    ArrayList<Candidate> dist = new ArrayList<Candidate>();
+    Cdict[] dicts = _config.dictionaries;
+    for (int di = 0; di < dicts.length; di++)
     {
-      if (suffixes.length > j)
-        suggestions[i++] = dict.word(suffixes[j]);
-      if (dist.length > j && i < MAX_COUNT)
-        suggestions[i++] = dict.word(dist[j]);
+      Cdict dict = dicts[di];
+      float bonus = (dict_bonus != null && dict_bonus.length == dicts.length)
+        ? dict_bonus[di] : 0.f;
+      Cdict.Result r = dict.find(word);
+      if (r.found)
+        exact.add(new Candidate(dict, r.index, bonus));
+      for (int s : dict.suffixes(r, MAX_COUNT))
+        suffixes.add(new Candidate(dict, s, bonus));
+      // Disable distance search for small words
+      if (word.length() >= 3 && !(r.found && MAX_COUNT <= 2))
+        for (int d : dict.distance(word, 1, MAX_COUNT))
+          dist.add(new Candidate(dict, d, bonus));
+    }
+    Collections.sort(exact);
+    Collections.sort(suffixes);
+    Collections.sort(dist);
+    int i = 0;
+    for (Candidate c : exact)
+      i = add_suggestion(c.word(), i);
+    for (int j = 0; j < MAX_COUNT * 2 && i < MAX_COUNT; j++)
+    {
+      if (suffixes.size() > j)
+        i = add_suggestion(suffixes.get(j).word(), i);
+      if (dist.size() > j)
+        i = add_suggestion(dist.get(j).word(), i);
     }
     if (first_char_upper)
       capitalize_results(suggestions, i);
     emoji_suggestion = query_emoji(word); // word with substitutions applied
     count = i;
     return i;
+  }
+
+  /** Add [w] at position [i] unless it's already suggested or there's no
+      more room. Returns the next position. */
+  int add_suggestion(String w, int i)
+  {
+    if (i >= MAX_COUNT)
+      return i;
+    for (int j = 0; j < i; j++)
+      if (suggestions[j].equals(w))
+        return i;
+    suggestions[i] = w;
+    return i + 1;
+  }
+
+  /** A word in one of the dictionaries, most frequent first. */
+  static final class Candidate implements Comparable<Candidate>
+  {
+    final Cdict dict;
+    final int index;
+    final float score;
+
+    Candidate(Cdict d, int i, float bonus)
+    { dict = d; index = i; score = d.freq(i) + bonus; }
+
+    String word() { return dict.word(index); }
+
+    public int compareTo(Candidate o) { return Float.compare(o.score, score); }
   }
 
   static void capitalize_results(String[] s, int count)

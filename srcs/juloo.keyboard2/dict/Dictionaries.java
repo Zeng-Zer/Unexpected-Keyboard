@@ -8,7 +8,10 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -35,21 +38,62 @@ public final class Dictionaries
   }
 
   /** Load the given dictionary and set it as the current dictionary in
-      [config]. If [name] is null, unset the current dictionary. */
+      [config]. If [name] is null, unset the current dictionary. [name] can
+      list several dictionaries separated by [SEPARATOR] to type in several
+      languages at once, the first one is the main dictionary. */
   public void set_current_dictionary(Config config, String name)
   {
     config.current_dictionary_name = null;
     config.current_dictionary = null;
+    config.dictionaries = new Cdict[0];
     config.emoji_dictionary = null;
     if (name == null)
       return;
-    Cdict[] dicts = load(name);
-    if (dicts == null)
+    ArrayList<Cdict> mains = new ArrayList<Cdict>();
+    for (String n : split_names(name))
+    {
+      Cdict[] dicts = load(n);
+      if (dicts == null)
+        continue; // Uninstalled, use the other dictionaries.
+      Cdict main = find_by_name(dicts, "main");
+      if (main == null)
+        continue;
+      mains.add(main);
+      if (config.emoji_dictionary == null)
+        config.emoji_dictionary = find_by_name(dicts, "emoji");
+    }
+    if (mains.size() == 0)
       return;
+    // Keep the same array while the dictionaries don't change, it identifies
+    // the glide lexicon.
+    Cdict[] ds = mains.toArray(new Cdict[0]);
+    if (!Arrays.equals(ds, _current_dicts))
+      _current_dicts = ds;
     config.current_dictionary_name = name;
-    config.current_dictionary = find_by_name(dicts, "main");
-    config.emoji_dictionary = find_by_name(dicts, "emoji");
+    config.dictionaries = _current_dicts;
+    config.current_dictionary = _current_dicts[0];
   }
+
+  public static final String SEPARATOR = "+";
+
+  public static String[] split_names(String name)
+  {
+    return name.split("\\+");
+  }
+
+  public static String join_names(List<String> names)
+  {
+    StringBuilder b = new StringBuilder();
+    for (String n : names)
+    {
+      if (b.length() > 0)
+        b.append(SEPARATOR);
+      b.append(n);
+    }
+    return b.toString();
+  }
+
+  Cdict[] _current_dicts = null;
 
   /** Util for finding a dictionary by name. Returns [null] if not found. */
   public static Cdict find_by_name(Cdict[] dicts, String name)

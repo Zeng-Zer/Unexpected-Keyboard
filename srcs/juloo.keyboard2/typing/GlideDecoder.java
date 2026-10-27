@@ -39,6 +39,9 @@ public final class GlideDecoder
 
   final KeyCenters _keys;
   final Lexicon _lex;
+  /** Frequency bonus for the words of each dictionary of the lexicon,
+      favoring the language being typed. See [LanguageContext]. */
+  float[] _dict_bonus;
   /** Key centers in key units. */
   final float[] _kx;
   final float[] _ky;
@@ -47,6 +50,7 @@ public final class GlideDecoder
   {
     _keys = keys;
     _lex = lex;
+    _dict_bonus = new float[lex.dicts.length];
     int n = keys.size();
     _kx = new float[n];
     _ky = new float[n];
@@ -55,6 +59,13 @@ public final class GlideDecoder
       _kx[i] = keys.x[i] / keys.key_w;
       _ky[i] = keys.y[i] / keys.key_h;
     }
+  }
+
+  /** [bonus] has an element for each dictionary of the lexicon. */
+  public void set_dict_bonus(float[] bonus)
+  {
+    if (bonus != null && bonus.length == _dict_bonus.length)
+      _dict_bonus = bonus;
   }
 
   public boolean uses(KeyCenters keys, Lexicon lex)
@@ -109,6 +120,7 @@ public final class GlideDecoder
         float s = score(m, _lex.freq(wi));
         if (Float.isNaN(s))
           continue;
+        s += W_FREQ * _dict_bonus[_lex._dict_id[wi]];
         int flags = _lex.flags(wi);
         if ((flags & Lexicon.FLAG_CAPITALIZED) != 0)
           s -= CAPITALIZED_PENALTY;

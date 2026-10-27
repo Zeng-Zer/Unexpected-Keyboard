@@ -9,6 +9,8 @@ import android.view.inputmethod.ExtractedText;
 import android.view.inputmethod.ExtractedTextRequest;
 import android.view.inputmethod.InputConnection;
 import java.util.Iterator;
+import juloo.cdict.Cdict;
+import juloo.keyboard2.typing.LanguageContext;
 import juloo.keyboard2.suggestions.Suggestions;
 
 public final class KeyEventHandler
@@ -203,6 +205,23 @@ public final class KeyEventHandler
   }
 
   @Override
+  public float[] language_bonus(boolean exclude_current_word)
+  {
+    Cdict[] dicts = _config.dictionaries;
+    InputConnection conn = _recv.getCurrentInputConnection();
+    if (dicts.length < 2 || conn == null)
+      return new float[dicts.length];
+    CharSequence text = conn.getTextBeforeCursor(100, 0);
+    if (text != null && exclude_current_word)
+    {
+      int w = word_before_cursor().length();
+      if (w <= text.length())
+        text = text.subSequence(0, text.length() - w);
+    }
+    return LanguageContext.bonus(dicts, text);
+  }
+
+  @Override
   public void paste_from_clipboard_pane(String content)
   {
     send_text(content);
@@ -211,6 +230,10 @@ public final class KeyEventHandler
   @Override
   public void currently_typed_word(String word)
   {
+    // Suggestions start at 2 letters, look at the language once per word.
+    if (word.length() == 2 && _config.dictionaries.length > 1
+        && _config.editor_config.should_show_candidates_view)
+      _suggestions.dict_bonus = language_bonus(true);
     _suggestions.currently_typed_word(word);
   }
 

@@ -518,7 +518,8 @@ public class Keyboard2 extends InputMethodService
           break;
 
         case CHANGE_DICTIONARY:
-          new DictionarySwitcher(Keyboard2.this, _dictionaries, this).choose();
+          new DictionarySwitcher(Keyboard2.this, _dictionaries, this)
+            .choose(_config.current_dictionary_name);
           break;
       }
     }

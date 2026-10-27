@@ -144,7 +144,7 @@ public class Keyboard2View extends View
     _keyboard = kw;
     // Start building the glide lexicon early, it takes a while.
     if (_config.glide_typing)
-      Lexicon.get_async(_config.current_dictionary);
+      Lexicon.get_async(_config.dictionaries);
     _shift_key = _keyboard.findKeyWithValue(KeyValue.SHIFT);
     _compose_key = _keyboard.findKeyWithValue(KeyValue.COMPOSE);
     KeyModifier.set_modmap(_keyboard.modmap);
@@ -271,6 +271,7 @@ public class Keyboard2View extends View
     GlideDecoder dec = glide_decoder();
     if (dec == null)
       return;
+    dec.set_dict_bonus(_config.handler.language_bonus(false));
     GlideDecoder.Result r = dec.decode(path.xs, path.ys, path.length,
         juloo.keyboard2.suggestions.Suggestions.MAX_COUNT);
     if (r == null || r.words.length == 0)
@@ -301,7 +302,7 @@ public class Keyboard2View extends View
     String prefix = "";
     if (use_lm)
     {
-      lm = letter_model(_config.current_dictionary);
+      lm = letter_model(_config.dictionaries);
       prefix = _config.handler.word_before_cursor().toLowerCase();
     }
     return _letter_keys[m.predict(_key_centers, x, y, k, lm, prefix)];
@@ -382,7 +383,7 @@ public class Keyboard2View extends View
   /** Returns [null] while the lexicon is being built. */
   private GlideDecoder glide_decoder()
   {
-    Lexicon lex = Lexicon.get_async(_config.current_dictionary);
+    Lexicon lex = Lexicon.get_async(_config.dictionaries);
     if (lex == null || _key_centers == null || _key_centers.size() == 0)
       return null;
     if (_glide_decoder == null || !_glide_decoder.uses(_key_centers, lex))
@@ -390,10 +391,10 @@ public class Keyboard2View extends View
     return _glide_decoder;
   }
 
-  private DictLetterModel letter_model(Cdict dict)
+  private DictLetterModel letter_model(Cdict[] dicts)
   {
-    if (_letter_model == null || !_letter_model.uses(dict))
-      _letter_model = new DictLetterModel(dict);
+    if (_letter_model == null || !_letter_model.uses(dicts))
+      _letter_model = new DictLetterModel(dicts);
     return _letter_model;
   }
 

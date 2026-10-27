@@ -41,7 +41,7 @@ public class TapSim {
     for (Cdict x : Cdict.of_bytes(Files.readAllBytes(Paths.get(a[0])))) if (x.name.equals("main")) d = x;
     Lexicon lex = Lexicon.of_dict(d);
     KeyCenters kc = GlideSim.layout();
-    TapModel.LetterModel lm = new DictLetterModel(d);
+    TapModel.LetterModel lm = new DictLetterModel(new Cdict[]{ d });
     // Word stream drawn from frequent words, weighted towards the most frequent
     List<String> pool = new ArrayList<>();
     for (int i = 0; i < lex.size() && pool.size() < 3000; i++) { String w = lex.word(i); if (lex.freq(i) >= 11 && w.matches("[a-z]+")) pool.add(w); }
