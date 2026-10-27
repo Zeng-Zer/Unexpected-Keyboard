@@ -23,6 +23,12 @@ public final class Pointers implements Handler.Callback
   public static final int FLAG_P_CLEAR_LATCHED = (1 << 6);
   /** Can't be locked, even when long pressing. */
   public static final int FLAG_P_CANT_LOCK = (1 << 7);
+  /** The pointer is drawing a glide gesture. */
+  public static final int FLAG_P_GLIDE = (1 << 8);
+
+  /** A pointer starting on a key that can glide turns into a glide gesture
+      when it travels this distance. Set by [Keyboard2View]. */
+  public float glide_trigger_px = Float.MAX_VALUE;
 
   private Handler _longpress_handler;
   private ArrayList<Pointer> _ptrs = new ArrayList<Pointer>();
@@ -69,9 +75,24 @@ public final class Pointers implements Handler.Callback
   public boolean isKeyDown(KeyboardData.Key k)
   {
     for (Pointer p : _ptrs)
-      if (p.key == k)
+    {
+      if (p.hasFlagsAny(FLAG_P_GLIDE))
+        continue;
+      // Show the key chosen by [TapModel] until the pointer swipes.
+      KeyboardData.Key shown = (p.gesture == null) ? p.tap_key : p.key;
+      if (shown == k)
         return true;
+    }
     return false;
+  }
+
+  /** The glide gesture in progress or [null]. */
+  public GlidePath getGlidePath()
+  {
+    for (Pointer p : _ptrs)
+      if (p.hasFlagsAny(FLAG_P_GLIDE))
+        return p.path;
+    return null;
   }
 
   /** See [FLAG_P_*] flags. Returns [-1] if the key is not pressed. */
@@ -147,6 +168,15 @@ public final class Pointers implements Handler.Callback
       return;
     }
     stopLongPress(ptr);
+    if (ptr.hasFlagsAny(FLAG_P_GLIDE))
+    {
+      clearLatched();
+      removePtr(ptr);
+      _handler.onGlideEnd(ptr.path, ptr.modifiers);
+      return;
+    }
+    if (ptr.gesture == null)
+      _handler.onTap(ptr.tap_key, ptr.downX, ptr.downY);
     KeyValue ptr_value = ptr.value;
     if (ptr.gesture != null && ptr.gesture.is_in_progress())
     {
@@ -199,7 +229,11 @@ public final class Pointers implements Handler.Callback
     return false;
   }
 
-  public void onTouchDown(float x, float y, int pointerId, KeyboardData.Key key)
+  /** [tap_key] is the key the pointer selects if it doesn't swipe. It is
+      usually [key], the key under the pointer, but might be a neighbor chosen
+      by [TapModel]. */
+  public void onTouchDown(float x, float y, int pointerId, KeyboardData.Key key,
+      KeyboardData.Key tap_key)
   {
     // Ignore new presses while a sliding key is active. On some devices, ghost
     // touch events can happen while the pointer travels on top of other keys.
@@ -208,8 +242,11 @@ public final class Pointers implements Handler.Callback
     // Don't take latched modifiers into account if an other key is pressed.
     // The other key already "own" the latched modifiers and will clear them.
     Modifiers mods = getModifiers(isOtherPointerDown());
-    KeyValue value = _handler.modifyKey(key.keys[0], mods);
+    KeyValue value = _handler.modifyKey(tap_key.keys[0], mods);
     Pointer ptr = make_pointer(pointerId, key, value, x, y, mods);
+    ptr.tap_key = tap_key;
+    if (_handler.canGlide(key) && !isOtherPointerDown())
+      ptr.path = new GlidePath(x, y);
     _ptrs.add(ptr);
     startLongPress(ptr);
     _handler.onPointerDown(value, false);
@@ -270,6 +307,20 @@ public final class Pointers implements Handler.Callback
       ptr.sliding.onTouchMove(ptr, x, y);
       return;
     }
+    if (ptr.path != null)
+    {
+      ptr.path.add(x, y);
+      if (ptr.hasFlagsAny(FLAG_P_GLIDE))
+      {
+        _handler.onGlideMove();
+        return;
+      }
+      if (Math.hypot(x - ptr.downX, y - ptr.downY) >= glide_trigger_px)
+      {
+        startGlide(ptr);
+        return;
+      }
+    }
 
     // The position in a IME windows is clampled to view.
     // For a better up swipe behaviour, set the y position to a negative value when clamped.
@@ -329,6 +380,17 @@ public final class Pointers implements Handler.Callback
         }
       }
     }
+  }
+
+  /** The pointer travelled far from its key, it's a glide gesture rather
+      than a swipe to a corner of the key. */
+  private void startGlide(Pointer ptr)
+  {
+    stopLongPress(ptr);
+    ptr.value = null;
+    ptr.flags = FLAG_P_GLIDE;
+    _handler.onPointerFlagsChanged(false);
+    _handler.onGlideMove();
   }
 
   // Pointers management
@@ -556,6 +618,10 @@ public final class Pointers implements Handler.Callback
     public int timeoutWhat;
     /** [null] when not in sliding mode. */
     public Sliding sliding;
+    /** The key typed if the pointer doesn't swipe. See [onTouchDown]. */
+    public KeyboardData.Key tap_key;
+    /** Points travelled by the pointer. [null] if it can't glide. */
+    public GlidePath path;
 
     public Pointer(int p, KeyboardData.Key k, KeyValue v, float x, float y, Modifiers m, int f)
     {
@@ -569,6 +635,8 @@ public final class Pointers implements Handler.Callback
       flags = f;
       timeoutWhat = -1;
       sliding = null;
+      tap_key = k;
+      path = null;
     }
 
     public boolean hasFlagsAny(int has)
@@ -669,6 +737,28 @@ public final class Pointers implements Handler.Callback
       last_move_ms = now;
       last_x = x;
       last_y = y;
+    }
+  }
+
+  /** Points of a glide gesture, in pixels. */
+  public static final class GlidePath
+  {
+    public float[] xs = new float[64];
+    public float[] ys = new float[64];
+    public int length = 0;
+
+    GlidePath(float x, float y) { add(x, y); }
+
+    void add(float x, float y)
+    {
+      if (length == xs.length)
+      {
+        xs = Arrays.copyOf(xs, length * 2);
+        ys = Arrays.copyOf(ys, length * 2);
+      }
+      xs[length] = x;
+      ys[length] = y;
+      length++;
     }
   }
 
@@ -821,5 +911,18 @@ public final class Pointers implements Handler.Callback
 
     /** Key is repeating. */
     public void onPointerHold(KeyValue k, Modifiers mods);
+
+    /** A key was pressed and released without swiping. [x] and [y] is where
+        the pointer went down. Called before [onPointerUp]. */
+    public void onTap(KeyboardData.Key k, float x, float y);
+
+    /** Whether a pointer going down on [k] might turn into a glide. */
+    public boolean canGlide(KeyboardData.Key k);
+
+    /** A glide gesture started or moved. */
+    public void onGlideMove();
+
+    /** A glide gesture ended. [mods] are the modifiers active when it started. */
+    public void onGlideEnd(GlidePath path, Modifiers mods);
   }
 }

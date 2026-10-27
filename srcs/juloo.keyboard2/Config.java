@@ -46,6 +46,9 @@ public final class Config
   public float slide_step_px;
   public boolean suggestions_enabled;
   public boolean suggestions_add_space;
+  public boolean glide_typing;
+  public boolean letter_aware_taps;
+  public boolean learn_touch_offsets;
   // Let the system handle vibration when false.
   public boolean vibrate_custom;
   // Control the vibration if [vibrate_custom] is true.
@@ -150,6 +153,9 @@ public final class Config
     number_row_symbols = number_row.equals("symbols");
     suggestions_enabled = _prefs.getBoolean("suggestions", true);
     suggestions_add_space = _prefs.getBoolean("suggestions_add_space", true);
+    glide_typing = _prefs.getBoolean("glide_typing", true);
+    letter_aware_taps = _prefs.getBoolean("letter_aware_taps", true);
+    learn_touch_offsets = _prefs.getBoolean("learn_touch_offsets", true);
     // The baseline for the swipe distance correspond to approximately the
     // width of a key in portrait mode, as most layouts have 10 columns.
     // Multipled by the DPI ratio because most swipes are made in the diagonals.
@@ -338,6 +344,11 @@ public final class Config
     public void key_up(KeyValue value, Pointers.Modifiers mods);
     public void mods_changed(Pointers.Modifiers mods);
     public void suggestion_entered(String text);
+    /** A word was glided. [words] are the candidates, best first. See
+        [KeyEventHandler.CAPS_*] for [caps]. */
+    public void glide_entered(String[] words, int caps);
+    /** The part of the current word that is before the cursor. */
+    public String word_before_cursor();
   }
 
   /** Config migrations. */

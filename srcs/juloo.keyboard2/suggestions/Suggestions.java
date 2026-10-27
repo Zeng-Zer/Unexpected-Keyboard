@@ -48,6 +48,19 @@ public final class Suggestions
     _callback.set_suggestions(this);
   }
 
+  /** Show the candidates of a glide gesture. [words[0]] is the word that
+      was entered. */
+  public void glide_candidates(String[] words)
+  {
+    if (!_enabled)
+      return;
+    clear();
+    count = Math.min(words.length, MAX_COUNT);
+    for (int i = 0; i < count; i++)
+      suggestions[i] = words[i];
+    _callback.set_suggestions(this);
+  }
+
   void clear()
   {
     count = 0;

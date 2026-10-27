@@ -140,12 +140,66 @@ public final class KeyEventHandler
   {
     if (add_space_after)
       text = text + " ";
+    last_glide_len = 0;
     String old = _typedword.get();
     int cur_rel = _typedword.cursor_relative();
     replace_surrounding_text(old.length() + cur_rel, -cur_rel, text);
     last_replaced_word = old;
     last_replacement_word_len = text.length();
     _next_last_action = LastAction.SUGGESTION_ENTERED;
+  }
+
+  public static final int CAPS_NONE = 0;
+  public static final int CAPS_FIRST = 1;
+  public static final int CAPS_ALL = 2;
+
+  /** Length of the text inserted by the last glide, removed at once by
+      backspace. */
+  int last_glide_len = 0;
+  String last_glide_word = null;
+
+  @Override
+  public void glide_entered(String[] words, int caps)
+  {
+    if (words.length == 0)
+      return;
+    String[] cased = new String[words.length];
+    for (int i = 0; i < words.length; i++)
+      cased[i] = apply_caps(words[i], caps);
+    // Separate from the previous word.
+    String text = cased[0];
+    InputConnection conn = _recv.getCurrentInputConnection();
+    CharSequence before = (conn == null) ? null : conn.getTextBeforeCursor(1, 0);
+    if (before != null && before.length() > 0 && needs_space_after(before.charAt(0)))
+      text = " " + text;
+    send_text(text);
+    last_glide_len = text.length();
+    last_glide_word = cased[0];
+    _last_action = LastAction.GLIDE_ENTERED;
+    _suggestions.glide_candidates(cased);
+  }
+
+  static String apply_caps(String w, int caps)
+  {
+    switch (caps)
+    {
+      case CAPS_ALL: return w.toUpperCase();
+      case CAPS_FIRST: return w.substring(0, 1).toUpperCase() + w.substring(1);
+      default: return w;
+    }
+  }
+
+  static boolean needs_space_after(char c)
+  {
+    return Character.isLetterOrDigit(c) || ".,!?;:)]}".indexOf(c) >= 0;
+  }
+
+  @Override
+  public String word_before_cursor()
+  {
+    String w = _typedword.get();
+    int end = w.length() + _typedword.cursor_relative();
+    return (end >= 0 && end <= w.length()) ? w.substring(0, end) : "";
   }
 
   @Override
@@ -573,7 +627,15 @@ public final class KeyEventHandler
   /** Undo the last autocorrect. */
   void handle_backspace()
   {
-    if (_last_action == LastAction.SUGGESTION_ENTERED
+    if (_last_action == LastAction.GLIDE_ENTERED && last_glide_len > 0
+        && _typedword.cursor_relative() == 0
+        && _typedword.get().equals(last_glide_word))
+    {
+      // Delete the glided word at once.
+      replace_surrounding_text(last_glide_len, 0, "");
+      last_glide_len = 0;
+    }
+    else if (_last_action == LastAction.SUGGESTION_ENTERED
         && last_replaced_word != null)
     {
       replace_surrounding_text(last_replacement_word_len, 0, last_replaced_word + " ");
@@ -612,6 +674,7 @@ public final class KeyEventHandler
   {
     SUGGESTION_ENTERED,
     SUGGESTION_UNDO,
+    GLIDE_ENTERED,
     OTHER
   }
 }
